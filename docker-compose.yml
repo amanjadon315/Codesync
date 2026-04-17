@@ -1,0 +1,66 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: codesync-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - codesync-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: codesync-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - codesync-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: codesync-backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    env_file:
+      - ./backend/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/codesync
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - codesync-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: codesync-frontend
+    restart: unless-stopped
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+    networks:
+      - codesync-net
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  codesync-net:
+    driver: bridge
